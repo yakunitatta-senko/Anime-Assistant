@@ -73,9 +73,11 @@ def search_web(query):
     # Define the search engines with their respective APIs or URLs
     search_engines = {
         "DuckDuckGo": "https://api.duckduckgo.com/",
-        "Wikipedia": "https://en.wikipedia.org/w/api.php"
+        "Wikipedia": "https://en.wikipedia.org/w/api.php",
+        "Jikan": f"https://api.jikan.moe/v4/anime?q={query}&limit=1"
     }
-    results = {}
+    
+    results = {}  # Initialize results dictionary
 
     for engine, url in search_engines.items():
         if engine == "DuckDuckGo":
@@ -89,6 +91,23 @@ def search_web(query):
                 results[engine] = {"abstract": abstract}
             except requests.exceptions.RequestException as e:
                 results[engine] = f"Error: {e}"
+        elif engine == "Jikan":
+            try:
+                response = requests.get(url)
+                response.raise_for_status()
+                anime_data = response.json()
+                print(anime_data)
+                # Extracting data from the Jikan API response
+                if 'data' in anime_data and len(anime_data['data']) > 0:
+                    anime = anime_data['data'][0]
+                    abstract = anime.get("synopsis", "No information available")
+                    results[engine] = {"abstract": abstract}
+                else:
+                    results[engine] = "No information available"
+            except requests.exceptions.RequestException as e:
+                results[engine] = f"Error: {e}"
+            except KeyError as ke:
+                results[engine] = f"Key Error: {ke}"
         else:
             # Fetch data from Wikipedia API
             params = {
@@ -109,7 +128,6 @@ def search_web(query):
                 extract = pages[page_id]["extract"] or "..."
                 results[engine] = {"abstract": extract}
             except requests.exceptions.RequestException as e:
-                
                 results[engine] = f"Error: {e}"
             except KeyError:
                 pass
