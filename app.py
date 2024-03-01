@@ -25,6 +25,46 @@ greeting_message = "Well, hello there! Fancy meeting you here."
 # Flag to track whether the bot is speaking
 bot_speaking = False
 
+# Function to handle bot actions and emit corresponding images
+def handle_bot_action(action):
+    global bot_speaking
+
+    # Set the bot speaking flag to True
+    bot_speaking = True
+
+    # Show the talking image initially
+    image_url = images['talking']
+    emit('update_image', image_url)  # Send the talking image URL to the client
+
+    # Delay for transition effect
+    time.sleep(0.5)
+
+    # Determine the action and emit corresponding image and message
+    if action == 'success':
+        image_url = images['success']
+        message = "Success message"
+    elif action == 'loading':
+        image_url = images['loading']
+        message = "Loading message"
+    elif action == 'sleeping':
+        image_url = images['sleeping']
+        message = "Sleeping message"
+    elif action == 'failure':
+        image_url = images['failure']
+        message = "Failure message"
+    else:
+        image_url = images['default']
+        message = "Default message"
+
+    # Emit the image URL and message to the client
+    emit('update_image', image_url)
+
+    # Delay for transition effect
+    time.sleep(0.5)
+    emit('update_image', images['default'])
+
+    # Set the bot speaking flag to False after finishing speaking
+    bot_speaking = False
 
 # Function to perform web search using various sources
 def search_web(query):
@@ -69,8 +109,10 @@ def search_web(query):
                 extract = pages[page_id]["extract"] or "..."
                 results[engine] = {"abstract": extract}
             except requests.exceptions.RequestException as e:
+                
                 results[engine] = f"Error: {e}"
-
+            except KeyError:
+                pass
     return results
 
 
@@ -108,44 +150,9 @@ def home():
     return render_template('index.html', image_url=image_url)
 
 
-# Socket event for sending greeting message
-@socketio.on('send_message')
-def send_message():
-    global bot_speaking
-
-    # Check if the bot is already speaking
-    if bot_speaking:
-        return
-
-    # Set the bot speaking flag to True
-    bot_speaking = True
-
-    # Show the talking image initially
-    image_url = images['talking']
-    emit('update_image', image_url)  # Send the talking image URL to the client
-
-    # Emit the greeting message as a whole
-    emit('update_message', {'text': greeting_message, 'sender': 'bot'})
-
-    # Wait for typing animation duration
-    time.sleep(0.015 * len(greeting_message))
-
-    # Change the image to default after finishing typing
-    image_url = images['default']
-    emit('update_image', image_url)
-
-    # Emit the typing_finished event
-    emit('typing_finished')
-
-    # Set the bot speaking flag to False after finishing speaking
-    bot_speaking = False
-
-
 # Socket event for handling user responses
 @socketio.on('user_response')
 def handle_user_response(user_input):
-    
-
     global bot_speaking
 
     # Check if the bot is currently speaking
@@ -154,6 +161,9 @@ def handle_user_response(user_input):
 
     # Set the bot speaking flag to True
     bot_speaking = True
+
+    # Emit the default image at the beginning of the response
+    emit('update_image', images['default'])
 
     # Check if the user input matches the query pattern
     query_pattern = r'(?:tell me about|explain|what is|who is|where is|when is|why is|how is) (.+)'
@@ -167,49 +177,43 @@ def handle_user_response(user_input):
         search_results = search_web(query)
         image_results = search_image(query)
 
-        
+        # Emit search results and images to the client
         if image_results:
             emit('update_message', {'text': user_input, 'sender': 'user'})
             for image_url in image_results:
                 emit('send_image', {'image': image_url, 'sender': 'bot'})
+        
         # Emit search results to the client
         for engine, result in search_results.items():
             text_message = f"{result['abstract']}"
+            emit('update_message', {'text': user_input, 'sender': 'user'})
             emit('update_message', {'text': text_message, 'sender': 'bot'})
 
-    # Check if the user input is a Discord invite link
+        # Use handle_bot_action to provide feedback based on user input
+        handle_bot_action('success')  # You can change this action based on your logic
+
     elif "discord.gg" in user_input:
+        # Handle Discord invite link
         emit('update_message', {'text': user_input, 'sender': 'user'})
-
-        # Extract the invite code from the link
         invite_code = user_input.split("/")[-1]
-
-        # Make a request to retrieve information about the Discord server
         response = requests.get(f"https://discord.com/api/v9/invites/{invite_code}?with_counts=true")
         server_info = response.json()
-
-        # Extract relevant information
         server_name = server_info['guild']['name']
         server_image_url = f"https://cdn.discordapp.com/icons/{server_info['guild']['id']}/{server_info['guild']['icon']}.png"
         server_member_count = server_info['approximate_member_count']
-
-        # Show the typing image
         typing_image_url = images['talking']
         emit('update_image', typing_image_url)
         time.sleep(0.095 * len(greeting_message))
-
-        # Emit the server information to the client
         emit('update_message', {'text': f"Server Name: {server_name}", 'sender': 'bot'})
         emit('update_message', {'text': f"Server Member Count: {server_member_count}", 'sender': 'bot'})
         emit('update_image', images['success'])
         time.sleep(1)
-
-        # Emit the server image URL
         emit('send_image', {'image': server_image_url, 'sender': 'bot'})
 
     else:
-        # Display the user's input as a hyperlink
+        # Handle default user input
         emit('update_message', {'text': user_input, 'sender': 'user'})
+        handle_bot_action('default')  # Provide default feedback
 
     # Set the bot speaking flag to False after finishing speaking
     bot_speaking = False
