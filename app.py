@@ -144,6 +144,8 @@ def send_message():
 # Socket event for handling user responses
 @socketio.on('user_response')
 def handle_user_response(user_input):
+    
+
     global bot_speaking
 
     # Check if the bot is currently speaking
@@ -165,13 +167,15 @@ def handle_user_response(user_input):
         search_results = search_web(query)
         image_results = search_image(query)
 
-        # Emit search results to the client
-        for engine, result in search_results.items():
-            text_message = f"{engine.upper()}: {result['abstract']}"
-            emit('update_message', {'text': text_message, 'sender': 'bot'})
+        
         if image_results:
+            emit('update_message', {'text': user_input, 'sender': 'user'})
             for image_url in image_results:
                 emit('send_image', {'image': image_url, 'sender': 'bot'})
+        # Emit search results to the client
+        for engine, result in search_results.items():
+            text_message = f"{result['abstract']}"
+            emit('update_message', {'text': text_message, 'sender': 'bot'})
 
     # Check if the user input is a Discord invite link
     elif "discord.gg" in user_input:
