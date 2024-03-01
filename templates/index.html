@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Assistant Bot</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            /* Light gray background */
+            color: #333;
+            /* Dark gray text color */
+            font-family: Arial, sans-serif;
+            /* Use Arial font */
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .container {
+            width: 800px;
+            margin-top: 30px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            /* Light shadow effect */
+            background-color: #fff;
+            /* White background */
+            padding: 20px;
+            position: relative;
+            /* Position relative for bot image overlay */
+        }
+
+        img {
+            max-width: 100%;
+            height: auto;
+            display: block;
+            margin: auto;
+        }
+
+        .message-container {
+            overflow-y: scroll;
+            height: 400px;
+            border: 1px solid #ddd;
+            /* Light gray border */
+            border-radius: 5px;
+            padding: 10px;
+            background-color: #f0f0f0;
+            /* Light gray background */
+            margin-bottom: 20px;
+            position: relative;
+            /* Position relative for bot text overlay */
+        }
+
+        .message-bubble {
+            padding: 10px;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            clear: both;
+            max-width: 70%;
+            word-wrap: break-word;
+            background-color: rgba(255, 255, 255, 0.8);
+            /* Transparent white background */
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            /* Light shadow effect */
+        }
+
+        .message-bubble-user {
+            background-color: #007bff;
+            /* Blue color for user messages */
+            float: left;
+            color: #fff;
+            /* White text color */
+        }
+
+        .message-bubble-bot {
+            background-color: rgba(255, 255, 255, 0.8);
+            /* Bubble lucent white color with 80% opacity */
+            float: right;
+            color: #333;
+            /* Dark gray text color */
+            border-radius: 15px;
+            /* Rounded corners for the message bubble */
+            padding: 15px;
+            /* Increase padding for better readability */
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1), 0 0 20px rgba(0, 0, 0, 0.1);
+            /* Apply box shadow for depth */
+        }
+
+        #userInput {
+            width: calc(100% - 20px);
+            padding: 10px;
+            box-sizing: border-box;
+            border: 1px solid #ddd;
+            /* Light gray border */
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+
+        #userInput:focus {
+            outline: none;
+            border-color: #007bff;
+            /* Blue border color on focus */
+        }
+
+        #userInput::placeholder {
+            color: #999;
+            /* Light gray placeholder text */
+        }
+
+        /* Bot icon style */
+        #botImage {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            width: 80px;
+            height: auto;
+            opacity: 0.7;
+            /* Set opacity for translucent effect */
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="message-container" id="messageContainer">
+            <!-- Messages will be displayed here -->
+        </div>
+        <input type="text" id="userInput" placeholder="Type your response...">
+        <!-- Bot icon -->
+        <img id="botImage" src="{{image_url}}" alt="Bot Image">
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.2.0/socket.io.js"></script>
+    <script>
+        var socket = io();
+
+        // Handle receiving message
+        socket.on('update_message', function (messageData) {
+            var messageContainer = document.getElementById('messageContainer');
+            var messageDiv = document.createElement('div');
+            messageDiv.className = 'message-bubble';
+
+            if (messageData.sender === 'user') {
+                messageDiv.classList.add('message-bubble-user');
+            } else {
+                messageDiv.classList.add('message-bubble-bot');
+            }
+
+            // Check if the sender is the bot
+            if (messageData.sender === 'bot') {
+                // Split the message text into characters for typing animation
+                var chars = messageData.text.split('');
+                var i = 0;
+
+                // Function for typing animation
+                var typingInterval = setInterval(function () {
+                    if (i < chars.length) {
+                        messageDiv.textContent += chars[i];
+                        i++;
+                    } else {
+                        clearInterval(typingInterval); // Stop typing animation
+                    }
+                }, 15); // Typing animation speed in milliseconds
+            } else {
+                // Check if the message contains an image URL
+                if (messageData.image) {
+                    var imageElement = document.createElement('img');
+                    imageElement.src = messageData.image;
+                    messageDiv.appendChild(imageElement);
+                } else {
+                    // For user messages, directly set the text content
+                    messageDiv.textContent = messageData.text;
+                }
+            }
+
+            messageContainer.appendChild(messageDiv);
+
+            // Scroll to the bottom of the message container
+            messageContainer.scrollTop = messageContainer.scrollHeight;
+        });
+
+        // Handle updating image after typing finished
+        socket.on('update_image', function (imageUrl) {
+            var botImage = document.getElementById('botImage');
+            botImage.src = imageUrl;
+        });
+
+        // Handle receiving the image URL
+        socket.on('send_image', function (imageData) {
+            var imageUrl = imageData.image;
+
+            // Create a new image element
+            var imageElement = document.createElement('img');
+            imageElement.setAttribute('src', imageUrl);
+            imageElement.setAttribute('alt', 'Server Image');
+            imageElement.className = 'message-bubble';
+            imageElement.classList.add('message-bubble-bot');
+
+            // Append the image element to the message container
+            var messageContainer = document.getElementById('messageContainer');
+            messageContainer.appendChild(imageElement);
+
+            // Scroll to the bottom of the message container
+            messageContainer.scrollTop = messageContainer.scrollHeight;
+        });
+
+        // Handle user input
+        document.getElementById('userInput').addEventListener('keydown', function (event) {
+            if (event.key === 'Enter') {
+                var userInput = document.getElementById('userInput').value;
+                socket.emit('user_response', userInput);
+                document.getElementById('userInput').value = ''; // Clear input field
+            }
+        });
+
+        // Trigger typing animation when page loads
+        document.addEventListener('DOMContentLoaded', function () {
+            socket.emit('send_message');
+        });
+    </script>
+</body>
+
+</html>
