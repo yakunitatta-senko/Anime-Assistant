@@ -198,6 +198,25 @@
             messageContainer.scrollTop = messageContainer.scrollHeight;
         });
 
+        // Handle receiving the video HTML div
+        socket.on('send_video', function (videoData) {
+            var videoDivHtml = videoData.video;
+
+            // Create a new div element
+            var videoDiv = document.createElement('div');
+            videoDiv.innerHTML = videoDivHtml;
+            videoDiv.className = 'message-bubble';
+            videoDiv.classList.add('message-bubble-bot');
+
+            // Append the video div to the message container
+            var messageContainer = document.getElementById('messageContainer');
+            messageContainer.appendChild(videoDiv);
+
+            // Scroll to the bottom of the message container
+            messageContainer.scrollTop = messageContainer.scrollHeight;
+        });
+
+
         // Handle user input
         document.getElementById('userInput').addEventListener('keydown', function (event) {
             if (event.key === 'Enter') {

@@ -1,3 +1,5 @@
+import os
+os.system('pip install Flask  socket  bs4')
 from flask import Flask, render_template
 from flask_socketio import SocketIO, emit
 from bs4 import BeautifulSoup
@@ -154,11 +156,43 @@ def search_image(query):
         print(f"Error searching for images: {e}")
         return None
 
+def search_video(query):
+    search_url = f"https://www.googleapis.com/customsearch/v1?key={API_KEY}&cx={SEARCH_ENGINE_ID}&q={query}"
+    print(f"Search URL: {search_url}")
+
+    try:
+        response = requests.get(search_url)
+        response.raise_for_status()
+        print("Search results fetched successfully")
+
+        data = response.json()
+
+        if 'items' in data:
+            first_video = data['items'][0]  # Assuming you want the first video result
+            video_url = first_video['link']
+            print(f"Video URL: {video_url}")
+
+            # Fetch HTML content of the video page
+            video_page_response = requests.get(video_url)
+            video_page_response.raise_for_status()
+            print("Video page fetched successfully")
+
+            video_page_soup = BeautifulSoup(video_page_response.content, 'html.parser')
+            return video_page_soup.prettify()
+
+        else:
+            print("No video results found")
+            return None
+
+    except requests.exceptions.RequestException as e:
+        print(f"Error searching for videos: {e}")
+        return None
+
+
 # Define context processor to pass images variable to templates
 @app.context_processor
 def inject_images():
     return dict(images=images)
-
 
 # Define routes
 @app.route('/')
@@ -194,13 +228,19 @@ def handle_user_response(user_input):
         # Search the web for the query
         search_results = search_web(query)
         image_results = search_image(query)
+        video_results = search_video(query)
 
         # Emit search results and images to the client
         if image_results:
             emit('update_message', {'text': user_input, 'sender': 'user'})
             for image_url in image_results:
                 emit('send_image', {'image': image_url, 'sender': 'bot'})
-        
+
+        # Emit video results to the client
+        if video_results:
+            emit('update_message', {'text': user_input, 'sender': 'user'})
+            emit('send_video', {'video': video_results, 'sender': 'bot'})
+
         # Emit search results to the client
         for engine, result in search_results.items():
             text_message = f"{result['abstract']}"
@@ -235,7 +275,6 @@ def handle_user_response(user_input):
 
     # Set the bot speaking flag to False after finishing speaking
     bot_speaking = False
-
 
 if __name__ == '__main__':
     # Find an available port dynamically
