@@ -214,7 +214,41 @@
 
             // Scroll to the bottom of the message container
             messageContainer.scrollTop = messageContainer.scrollHeight;
+
+            // Add event listener to handle any clicks that cause redirection within the video div
+            videoDiv.addEventListener('click', function (event) {
+                var target = event.target;
+
+                // Check if the target or any of its parents is a link or has an href attribute
+                while (target && target !== this) {
+                    if (target.tagName === 'A' || target.hasAttribute('href')) {
+                        event.preventDefault();
+                        var link = target.href || target.getAttribute('href');
+
+                        // Fetch the content dynamically and display it within the message bubble
+                        fetch(`/fetch_content?url=${encodeURIComponent(link)}`)
+                            .then(response => response.text())
+                            .then(content => {
+                                // Create a div to display the fetched content
+                                var contentDiv = document.createElement('div');
+                                contentDiv.innerHTML = content;
+                                contentDiv.style.border = '1px solid #ccc'; // Optional styling
+                                contentDiv.style.padding = '10px'; // Optional styling
+
+                                // Clear the current content and display the fetched content
+                                videoDiv.innerHTML = '';
+                                videoDiv.appendChild(contentDiv);
+                            })
+                            .catch(error => console.error('Error fetching content:', error));
+
+                        return;
+                    }
+                    target = target.parentNode;
+                }
+            });
         });
+
+
 
 
         // Handle user input

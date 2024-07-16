@@ -1,7 +1,7 @@
 import os
-os.system('pip install Flask  socket  bs4')
-from flask import Flask, render_template
+from flask import Flask, render_template, request ,render_template_string
 from flask_socketio import SocketIO, emit
+from urllib.parse import urljoin
 from bs4 import BeautifulSoup
 import requests
 import socket
@@ -135,7 +135,6 @@ def search_web(query):
                 pass
     return results
 
-
 # Define your Google Custom Search API key and search engine ID
 API_KEY = 'AIzaSyBNCNpIH26nsO_umj1LHMSMCo1jzmgkuaI'
 SEARCH_ENGINE_ID = 'a1d15feaa6af94024'
@@ -188,7 +187,6 @@ def search_video(query):
         print(f"Error searching for videos: {e}")
         return None
 
-
 # Define context processor to pass images variable to templates
 @app.context_processor
 def inject_images():
@@ -200,6 +198,42 @@ def home():
     # Show the talking image initially
     image_url = images['talking']
     return render_template('index.html', image_url=image_url)
+    
+@app.route('/fetch_content')
+def fetch_content():
+    url = request.args.get('url')
+    try:
+        response = requests.get(url)
+        response.raise_for_status()
+
+        # Parse the HTML content
+        soup = BeautifulSoup(response.content, 'html.parser')
+
+        # Rewrite links to be absolute for proper rendering
+        for link in soup.find_all('link'):
+            if link.get('href') and not link.get('href').startswith('http'):
+                link['href'] = urljoin(url, link['href'])
+
+        # Rewrite image sources to be absolute
+        for img in soup.find_all('img'):
+            if img.get('src') and not img.get('src').startswith('http'):
+                img['src'] = urljoin(url, img['src'])
+
+        # Return rendered HTML content
+        return render_template_string(str(soup))
+    except requests.exceptions.RequestException as e:
+        return f"Error fetching content: {e}", 500
+
+
+
+
+
+
+
+
+
+
+
 
 
 # Socket event for handling user responses
