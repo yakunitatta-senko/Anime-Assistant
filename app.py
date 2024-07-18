@@ -1,7 +1,8 @@
 import os
 from flask import Flask, render_template, request ,render_template_string
 from flask_socketio import SocketIO, emit
-from urllib.parse import urljoin
+from urllib.parse import urljoin , urlparse
+
 from bs4 import BeautifulSoup
 import requests
 import socket
@@ -252,7 +253,16 @@ def home():
 @app.route('/fetch_content')
 def fetch_content():
     url = request.args.get('url')
+    if not url:
+        return "Error: URL parameter is missing", 400
+
     try:
+        # Check if the URL is valid and add 'https://' if no scheme is provided
+        parsed_url = urlparse(url)
+        if not (parsed_url.scheme and parsed_url.netloc):
+            url = f"https://{url}"  # Assuming HTTPS as default scheme if none is provided
+
+        # Make the request
         response = requests.get(url)
         response.raise_for_status()
 
@@ -261,12 +271,12 @@ def fetch_content():
 
         # Rewrite links to be absolute for proper rendering
         for link in soup.find_all('a'):
-            if link.get('href') and not link.get('href').startswith('http'):
+            if link.get('href') and not link['href'].startswith('http'):
                 link['href'] = urljoin(url, link['href'])
 
         # Rewrite image sources to be absolute
         for img in soup.find_all('img'):
-            if img.get('src') and not img.get('src').startswith('http'):
+            if img.get('src') and not img['src'].startswith('http'):
                 img['src'] = urljoin(url, img['src'])
 
         # Return rendered HTML content
@@ -274,8 +284,6 @@ def fetch_content():
 
     except requests.exceptions.RequestException as e:
         return f"Error fetching content: {e}", 500
-
-
 
 
 
@@ -327,7 +335,11 @@ def handle_user_response(user_input):
 
         # Emit search results to the client
         for engine, result in search_results.items():
-            text_message = f"{result['abstract']}"
+            if isinstance(result, dict) and 'abstract' in result:
+                text_message = result['abstract']
+            else:
+                text_message = str(result)  # Handle cases where result is not a dictionary
+
             emit('update_message', {'text': user_input, 'sender': 'user'})
             emit('update_message', {'text': text_message, 'sender': 'bot'})
 
