@@ -137,7 +137,7 @@ def search_web(query):
 
 # Define your Google Custom Search API key and search engine ID
 API_KEY = 'AIzaSyBNCNpIH26nsO_umj1LHMSMCo1jzmgkuaI'
-SEARCH_ENGINE_ID = 'a1d15feaa6af94024'
+SEARCH_ENGINE_ID = 'a2ddbc937a4db4829'
 
 def search_image(query):
     search_url = f"https://www.googleapis.com/customsearch/v1?key={API_KEY}&cx={SEARCH_ENGINE_ID}&searchType=image&q={query}"
@@ -177,7 +177,19 @@ def search_video(query):
             print("Video page fetched successfully")
 
             video_page_soup = BeautifulSoup(video_page_response.content, 'html.parser')
-            return video_page_soup.prettify()
+
+            # Rewrite links to be absolute for proper rendering
+            for link in video_page_soup.find_all('a'):
+                if link.get('href') and not link.get('href').startswith('http'):
+                    link['href'] = urljoin(video_url, link['href'])
+
+            # Rewrite image sources to be absolute for proper rendering
+            for img in video_page_soup.find_all('img'):
+                if img.get('src') and not img.get('src').startswith('http'):
+                    img['src'] = urljoin(video_url, img['src'])
+
+            # Return rendered HTML content
+            return render_template_string(str(video_page_soup))
 
         else:
             print("No video results found")
@@ -185,7 +197,45 @@ def search_video(query):
 
     except requests.exceptions.RequestException as e:
         print(f"Error searching for videos: {e}")
-        return None
+        return search_video_ddg(query)
+
+
+
+
+
+
+def search_video_ddg(query):
+    search_url = f"https://api.duckduckgo.com/?q={query}&format=json"
+    
+    try:
+        response = requests.get(search_url)
+        response.raise_for_status()
+        data = response.json()
+        
+        # Extract video URLs from the search results
+        if 'Results' in data and 'Videos' in data['Results']:
+            first_video = data['Results']['Videos'][0]
+            video_url = first_video['Url']
+            print(f"Video URL (DDG): {video_url}")
+
+            # Fetch HTML content of the video page
+            video_page_response = requests.get(video_url)
+            video_page_response.raise_for_status()
+            print("Video page fetched successfully")
+
+            video_page_soup = BeautifulSoup(video_page_response.content, 'html.parser')
+
+            # Return rendered HTML content
+            return render_template_string(str(video_page_soup))
+
+        else:
+            print("No video results found (DDG)")
+            return None
+
+    except requests.exceptions.RequestException as e:
+        print(f"Error searching for videos with DuckDuckGo: {e}")
+        print("Switching to DuckDuckGo for video search...")
+        return search_video_ddg(query)
 
 # Define context processor to pass images variable to templates
 @app.context_processor
@@ -210,21 +260,24 @@ def fetch_content():
         soup = BeautifulSoup(response.content, 'html.parser')
 
         # Rewrite links to be absolute for proper rendering
-        for link in soup.find_all('link'):
+        for link in soup.find_all('a'):
             if link.get('href') and not link.get('href').startswith('http'):
                 link['href'] = urljoin(url, link['href'])
 
-        # Rewrite image sources to be absolute
+        # Rewrite image sources to be absolute and ensure they are displayed properly
         for img in soup.find_all('img'):
-            if img.get('src') and not img.get('src').startswith('http'):
+            if img.get('src'):
                 img['src'] = urljoin(url, img['src'])
+
+                # If the image source still doesn't start with 'http', handle it appropriately
+                if not img['src'].startswith('http'):
+                    img['src'] = urljoin(url, '/' + img['src'].lstrip('/'))
 
         # Return rendered HTML content
         return render_template_string(str(soup))
+
     except requests.exceptions.RequestException as e:
         return f"Error fetching content: {e}", 500
-
-
 
 
 
@@ -324,3 +377,4 @@ if __name__ == '__main__':
 
     print(f"Server is running on port {port}")
     socketio.run(app, port=port, debug=True)
+
