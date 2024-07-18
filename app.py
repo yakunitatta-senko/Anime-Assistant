@@ -264,20 +264,17 @@ def fetch_content():
             if link.get('href') and not link.get('href').startswith('http'):
                 link['href'] = urljoin(url, link['href'])
 
-        # Rewrite image sources to be absolute and ensure they are displayed properly
+        # Rewrite image sources to be absolute
         for img in soup.find_all('img'):
-            if img.get('src'):
+            if img.get('src') and not img.get('src').startswith('http'):
                 img['src'] = urljoin(url, img['src'])
-
-                # If the image source still doesn't start with 'http', handle it appropriately
-                if not img['src'].startswith('http'):
-                    img['src'] = urljoin(url, '/' + img['src'].lstrip('/'))
 
         # Return rendered HTML content
         return render_template_string(str(soup))
 
     except requests.exceptions.RequestException as e:
         return f"Error fetching content: {e}", 500
+
 
 
 
