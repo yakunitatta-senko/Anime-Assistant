@@ -202,29 +202,11 @@
         socket.on('send_video', function (videoData) {
             var videoDivHtml = videoData.video;
 
-            // Create a new div element for the video content
+            // Create a new div element
             var videoDiv = document.createElement('div');
             videoDiv.innerHTML = videoDivHtml;
-            videoDiv.className = 'message-bubble message-bubble-bot'; // Apply necessary classes
-
-            // Find and style the video element within the videoDiv
-            var videoElement = videoDiv.querySelector('video');
-            if (videoElement) {
-                // Apply consistent styling to fit within the page layout
-                videoElement.style.maxWidth = '100%'; // Fit within the container width
-                videoElement.style.height = 'auto'; // Maintain aspect ratio
-                videoElement.style.borderRadius = '8px'; // Rounded corners (optional)
-                videoElement.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)'; // Subtle shadow for better visibility
-            }
-
-            // Find and style images within the videoDiv
-            var imgElements = videoDiv.querySelectorAll('img');
-            imgElements.forEach(img => {
-                img.style.maxWidth = '100%'; // Fit within the container width
-                img.style.height = 'auto'; // Maintain aspect ratio
-                img.style.borderRadius = '8px'; // Rounded corners (optional)
-                img.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)'; // Subtle shadow for better visibility
-            });
+            videoDiv.className = 'message-bubble';
+            videoDiv.classList.add('message-bubble-bot');
 
             // Append the video div to the message container
             var messageContainer = document.getElementById('messageContainer');
@@ -236,74 +218,38 @@
             // Add event listener to handle any clicks that cause redirection within the video div
             videoDiv.addEventListener('click', function (event) {
                 var target = event.target;
-                console.log('Click detected on target:', target);
 
                 // Check if the target or any of its parents is a link or has an href attribute
                 while (target && target !== this) {
-                    console.log('Checking target:', target);
                     if (target.tagName === 'A' || target.hasAttribute('href')) {
-                        console.log('Link or href attribute found:', target);
                         event.preventDefault();
                         var link = target.href || target.getAttribute('href');
-                        console.log('Link to fetch:', link);
 
                         // Fetch the content dynamically and display it within the message bubble
                         fetch(`/fetch_content?url=${encodeURIComponent(link)}`)
                             .then(response => response.text())
                             .then(content => {
-                                console.log('Fetched content:', content);
-
                                 // Create a div to display the fetched content
                                 var contentDiv = document.createElement('div');
                                 contentDiv.innerHTML = content;
-                                contentDiv.style.border = '1px solid #ddd'; // Light border to match existing styles
-                                contentDiv.style.padding = '10px'; // Consistent padding
-                                contentDiv.style.borderRadius = '8px'; // Rounded corners
-                                contentDiv.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)'; // Subtle shadow
-
-                                console.log('Created contentDiv:', contentDiv);
-
-                                // Process the content to ensure proper rendering of links, images, and videos
-                                var base = new URL(link);
-                                contentDiv.querySelectorAll('a, img, video').forEach(el => {
-                                    console.log('Processing element:', el);
-                                    if (el.tagName === 'A' && el.href) {
-                                        el.href = new URL(el.getAttribute('href'), base).href;
-                                        console.log('Updated link href:', el.href);
-                                    }
-                                    if (el.tagName === 'IMG' && el.src) {
-                                        el.src = new URL(el.getAttribute('src'), base).href;
-                                        el.style.maxWidth = '100%'; // Fit within the container width
-                                        el.style.height = 'auto'; // Maintain aspect ratio
-                                        el.style.borderRadius = '8px'; // Rounded corners (optional)
-                                        el.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)'; // Subtle shadow
-                                        console.log('Updated img src:', el.src);
-                                    }
-                                    if (el.tagName === 'VIDEO' && el.src) {
-                                        el.src = new URL(el.getAttribute('src'), base).href;
-                                        el.controls = true; // Enable video controls
-                                        el.style.maxWidth = '100%'; // Fit within the container width
-                                        el.style.height = 'auto'; // Maintain aspect ratio
-                                        el.style.borderRadius = '8px'; // Rounded corners (optional)
-                                        el.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)'; // Subtle shadow
-                                        console.log('Updated video src and enabled controls:', el.src);
-                                    }
-                                });
+                                contentDiv.style.border = '1px solid #ccc'; // Optional styling
+                                contentDiv.style.padding = '10px'; // Optional styling
 
                                 // Clear the current content and display the fetched content
                                 videoDiv.innerHTML = '';
                                 videoDiv.appendChild(contentDiv);
-                                console.log('Displayed fetched content in videoDiv.');
                             })
                             .catch(error => console.error('Error fetching content:', error));
 
                         return;
                     }
                     target = target.parentNode;
-                    console.log('Moving to parent target:', target);
                 }
             });
         });
+
+
+
 
         // Handle user input
         document.getElementById('userInput').addEventListener('keydown', function (event) {

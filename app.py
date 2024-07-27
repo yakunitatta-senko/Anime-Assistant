@@ -1,9 +1,12 @@
 import os
-os.system('pip install flask flask-socketio')
+# os.system('pip install flask flask-socketio')
 
 from flask import Flask, render_template, request ,render_template_string, Response
 from flask_socketio import SocketIO, emit
 from urllib.parse import urljoin , urlparse
+
+from markupsafe import Markup, escape
+
 
 from bs4 import BeautifulSoup
 import requests
@@ -159,62 +162,48 @@ def search_image(query):
         return None
 
 def search_video(query):
-    # Check if the query contains an 'https://' URL
-    if 'https://' in query:
-        video_url = query
-    else:
-        # Perform a search if the query does not contain a URL
-        search_url = f"https://www.googleapis.com/customsearch/v1?key={API_KEY}&cx={SEARCH_ENGINE_ID}&q={query}"
-        print(f"Search URL: {search_url}")
+    search_url = f"https://www.googleapis.com/customsearch/v1?key={API_KEY}&cx={SEARCH_ENGINE_ID}&q={query}"
+    print(f"Search URL: {search_url}")
 
-        try:
-            response = requests.get(search_url)
-            response.raise_for_status()
-            print("Search results fetched successfully")
-
-            data = response.json()
-
-            if 'items' in data:
-                first_video = data['items'][0]  # Assuming you want the first video result
-                video_url = first_video['link']
-                print(f"Video URL: {video_url}")
-
-            else:
-                print("No video results found")
-                return None
-
-        except requests.exceptions.RequestException as e:
-            print(f"Error searching for videos: {e}")
-            return search_video_ddg(query)
-
-    # Fetch HTML content of the video page
     try:
-        video_page_response = requests.get(video_url)
-        video_page_response.raise_for_status()
-        print("Video page fetched successfully")
+        response = requests.get(search_url)
+        response.raise_for_status()
+        print("Search results fetched successfully")
 
-        video_page_soup = BeautifulSoup(video_page_response.content, 'html.parser')
+        data = response.json()
 
-        # Rewrite links to be absolute for proper rendering
-        for link in video_page_soup.find_all('a'):
-            if link.get('href') and not link.get('href').startswith('http'):
-                link['href'] = urljoin(video_url, link['href'])
+        if 'items' in data:
+            first_video = data['items'][0]  # Assuming you want the first video result
+            video_url = first_video['link']
+            print(f"Video URL: {video_url}")
 
-        # Rewrite image sources to be absolute for proper rendering
-        for img in video_page_soup.find_all('img'):
-            if img.get('src') and not img.get('src').startswith('http'):
-                img['src'] = urljoin(video_url, img['src'])
+            # Fetch HTML content of the video page
+            video_page_response = requests.get(video_url)
+            video_page_response.raise_for_status()
+            print("Video page fetched successfully")
 
-        # Return rendered HTML content
-        return render_template_string(str(video_page_soup))
+            video_page_soup = BeautifulSoup(video_page_response.content, 'html.parser')
+
+            # Rewrite links to be absolute for proper rendering
+            for link in video_page_soup.find_all('a'):
+                if link.get('href') and not link.get('href').startswith('http'):
+                    link['href'] = urljoin(video_url, link['href'])
+
+            # Rewrite image sources to be absolute for proper rendering
+            for img in video_page_soup.find_all('img'):
+                if img.get('src') and not img.get('src').startswith('http'):
+                    img['src'] = urljoin(video_url, img['src'])
+
+            # Return rendered HTML content
+            return render_template_string(str(video_page_soup))
+
+        else:
+            print("No video results found")
+            return None
 
     except requests.exceptions.RequestException as e:
-        print(f"Error fetching video page: {e}")
-        return None
-
-
-
-
+        print(f"Error searching for videos: {e}")
+        return search_video_ddg(query)
 
 
 def search_video_ddg(query):
@@ -239,7 +228,7 @@ def search_video_ddg(query):
             video_page_soup = BeautifulSoup(video_page_response.content, 'html.parser')
 
             # Return rendered HTML content
-            return render_template_string(str(video_page_soup))
+            return render_template_string(video_page_soup)
 
         else:
             print("No video results found (DDG)")
@@ -265,64 +254,32 @@ def home():
 @app.route('/fetch_content')
 def fetch_content():
     url = request.args.get('url')
-    if not url:
-        return "Error: URL parameter is missing", 400
-
     try:
-        # Check if the URL is valid and add default scheme if missing
-        parsed_url = urlparse(url)
-        if not parsed_url.scheme:
-            url = f"https://{url}"  # Default to HTTPS
-
-        # Fetch the content from the URL
         response = requests.get(url)
         response.raise_for_status()
-
-        # Check if the content type is HTML
-        if 'text/html' not in response.headers.get('Content-Type', ''):
-            return "Error: The URL does not point to an HTML document", 400
 
         # Parse the HTML content
         soup = BeautifulSoup(response.content, 'html.parser')
 
         # Rewrite links to be absolute for proper rendering
         for link in soup.find_all('a'):
-            href = link.get('href')
-            if href and not href.startswith('http'):
-                link['href'] = urljoin(url, href)
+            if link.get('href') and not link.get('href').startswith('http'):
+                link['href'] = urljoin(url, link['href'])
 
-        # Rewrite image sources to be absolute
+        # Rewrite image sources to be absolute and ensure they are displayed properly
         for img in soup.find_all('img'):
-            src = img.get('src')
-            if src and not src.startswith('http'):
-                img['src'] = urljoin(url, src)
+            if img.get('src'):
+                img['src'] = urljoin(url, img['src'])
 
-        # Ensure video tags are handled properly
-        for video in soup.find_all('video'):
-            for source in video.find_all('source'):
-                src = source.get('src')
-                if src and not src.startswith('http'):
-                    source['src'] = urljoin(url, src)
-
-        # Ensure iframe embeds are handled properly
-        for iframe in soup.find_all('iframe'):
-            src = iframe.get('src')
-            if src and not src.startswith('http'):
-                iframe['src'] = urljoin(url, src)
-
-        # Ensure the document is well-formed
-        html_str = str(soup)
-        if not html_str.strip():
-            return "Error: The fetched content is empty or invalid", 400
+                # If the image source still doesn't start with 'http', handle it appropriately
+                if not img['src'].startswith('http'):
+                    img['src'] = urljoin(url, '/' + img['src'].lstrip('/'))
 
         # Return rendered HTML content
-        return Response(html_str, content_type='text/html')
+        return render_template_string(str(soup))
 
     except requests.exceptions.RequestException as e:
         return f"Error fetching content: {e}", 500
-
-
-
 
 
 
@@ -423,3 +380,4 @@ if __name__ == '__main__':
 
     print(f"Server is running on port {port}")
     socketio.run(app, port=port, debug=True)
+
