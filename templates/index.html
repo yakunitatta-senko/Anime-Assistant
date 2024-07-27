@@ -202,11 +202,17 @@
         socket.on('send_video', function (videoData) {
             var videoDivHtml = videoData.video;
 
-            // Create a new div element
+            // Create a new div element for the video content
             var videoDiv = document.createElement('div');
             videoDiv.innerHTML = videoDivHtml;
-            videoDiv.className = 'message-bubble';
-            videoDiv.classList.add('message-bubble-bot');
+            videoDiv.className = 'message-bubble message-bubble-bot'; // Apply necessary classes
+
+            // Find the video element within the videoDiv
+            var videoElement = videoDiv.querySelector('video');
+
+            // Set max-width and max-height properties to control the size
+            videoElement.style.maxWidth = '100%'; // Adjust as needed
+            videoElement.style.maxHeight = '300px'; // Adjust as needed or remove this line for no height limit
 
             // Append the video div to the message container
             var messageContainer = document.getElementById('messageContainer');
@@ -218,38 +224,66 @@
             // Add event listener to handle any clicks that cause redirection within the video div
             videoDiv.addEventListener('click', function (event) {
                 var target = event.target;
+                console.log('Click detected on target:', target);
 
                 // Check if the target or any of its parents is a link or has an href attribute
                 while (target && target !== this) {
+                    console.log('Checking target:', target);
                     if (target.tagName === 'A' || target.hasAttribute('href')) {
+                        console.log('Link or href attribute found:', target);
                         event.preventDefault();
                         var link = target.href || target.getAttribute('href');
+                        console.log('Link to fetch:', link);
 
                         // Fetch the content dynamically and display it within the message bubble
                         fetch(`/fetch_content?url=${encodeURIComponent(link)}`)
-                            .then(response => response.text())
+                            .then(response => {
+                                console.log('Received response:', response);
+                                return response.text();
+                            })
                             .then(content => {
+                                console.log('Fetched content:', content);
+
                                 // Create a div to display the fetched content
                                 var contentDiv = document.createElement('div');
                                 contentDiv.innerHTML = content;
                                 contentDiv.style.border = '1px solid #ccc'; // Optional styling
                                 contentDiv.style.padding = '10px'; // Optional styling
+                                console.log('Created contentDiv:', contentDiv);
+
+                                // Process the content to ensure proper rendering of links, images, and videos
+                                var base = new URL(link);
+                                contentDiv.querySelectorAll('a, img, video').forEach(el => {
+                                    console.log('Processing element:', el);
+                                    if (el.tagName === 'A' && el.href) {
+                                        el.href = new URL(el.getAttribute('href'), base).href;
+                                        console.log('Updated link href:', el.href);
+                                    }
+                                    if (el.tagName === 'IMG' && el.src) {
+                                        el.src = new URL(el.getAttribute('src'), base).href;
+                                        console.log('Updated img src:', el.src);
+                                    }
+                                    if (el.tagName === 'VIDEO' && el.src) {
+                                        el.src = new URL(el.getAttribute('src'), base).href;
+                                        el.controls = true; // Enable video controls
+                                        console.log('Updated video src and enabled controls:', el.src);
+                                    }
+                                });
 
                                 // Clear the current content and display the fetched content
                                 videoDiv.innerHTML = '';
                                 videoDiv.appendChild(contentDiv);
+                                console.log('Displayed fetched content in videoDiv.');
                             })
                             .catch(error => console.error('Error fetching content:', error));
 
                         return;
                     }
                     target = target.parentNode;
+                    console.log('Moving to parent target:', target);
                 }
             });
         });
-
-
-
 
         // Handle user input
         document.getElementById('userInput').addEventListener('keydown', function (event) {
