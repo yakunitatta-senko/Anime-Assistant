@@ -1,7 +1,7 @@
 import os
 os.system('pip install flask flask-socketio')
 
-from flask import Flask, render_template, request ,render_template_string
+from flask import Flask, render_template, request ,render_template_string, Response
 from flask_socketio import SocketIO, emit
 from urllib.parse import urljoin , urlparse
 
@@ -269,33 +269,57 @@ def fetch_content():
         return "Error: URL parameter is missing", 400
 
     try:
-        # Check if the URL is valid
+        # Check if the URL is valid and add default scheme if missing
         parsed_url = urlparse(url)
         if not parsed_url.scheme:
-            url = f"https://{url}"  # Assuming HTTPS as default scheme if none is provided
+            url = f"https://{url}"  # Default to HTTPS
 
+        # Fetch the content from the URL
         response = requests.get(url)
         response.raise_for_status()
+
+        # Check if the content type is HTML
+        if 'text/html' not in response.headers.get('Content-Type', ''):
+            return "Error: The URL does not point to an HTML document", 400
 
         # Parse the HTML content
         soup = BeautifulSoup(response.content, 'html.parser')
 
         # Rewrite links to be absolute for proper rendering
         for link in soup.find_all('a'):
-            if link.get('href') and not link.get('href').startswith('http'):
-                link['href'] = urljoin(url, link['href'])
+            href = link.get('href')
+            if href and not href.startswith('http'):
+                link['href'] = urljoin(url, href)
 
         # Rewrite image sources to be absolute
         for img in soup.find_all('img'):
-            if img.get('src') and not img.get('src').startswith('http'):
-                img['src'] = urljoin(url, img['src'])
+            src = img.get('src')
+            if src and not src.startswith('http'):
+                img['src'] = urljoin(url, src)
+
+        # Ensure video tags are handled properly
+        for video in soup.find_all('video'):
+            for source in video.find_all('source'):
+                src = source.get('src')
+                if src and not src.startswith('http'):
+                    source['src'] = urljoin(url, src)
+
+        # Ensure iframe embeds are handled properly
+        for iframe in soup.find_all('iframe'):
+            src = iframe.get('src')
+            if src and not src.startswith('http'):
+                iframe['src'] = urljoin(url, src)
+
+        # Ensure the document is well-formed
+        html_str = str(soup)
+        if not html_str.strip():
+            return "Error: The fetched content is empty or invalid", 400
 
         # Return rendered HTML content
-        return render_template_string(str(soup))
+        return Response(html_str, content_type='text/html')
 
     except requests.exceptions.RequestException as e:
         return f"Error fetching content: {e}", 500
-
 
 
 
@@ -399,4 +423,3 @@ if __name__ == '__main__':
 
     print(f"Server is running on port {port}")
     socketio.run(app, port=port, debug=True)
-
