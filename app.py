@@ -1,5 +1,6 @@
 import os
-# os.system('pip install flask flask-socketio')
+os.system('pip install flask flask-socketio')
+os.system('pip install --upgrade pip')
 
 from flask import Flask, render_template, request ,render_template_string, Response
 from flask_socketio import SocketIO, emit
@@ -162,7 +163,7 @@ def search_image(query):
         return None
 
 def search_video(query):
-    search_url = f"https://www.googleapis.com/customsearch/v1?key={API_KEY}&cx={SEARCH_ENGINE_ID}&q={query}"
+    search_url = f"https://www.bing.com/search?q={query}"
     print(f"Search URL: {search_url}")
 
     try:
@@ -170,41 +171,45 @@ def search_video(query):
         response.raise_for_status()
         print("Search results fetched successfully")
 
-        data = response.json()
+        search_soup = BeautifulSoup(response.content, 'html.parser')
 
-        if 'items' in data:
-            first_video = data['items'][0]  # Assuming you want the first video result
-            video_url = first_video['link']
-            print(f"Video URL: {video_url}")
-
-            # Fetch HTML content of the video page
-            video_page_response = requests.get(video_url)
-            video_page_response.raise_for_status()
-            print("Video page fetched successfully")
-
-            video_page_soup = BeautifulSoup(video_page_response.content, 'html.parser')
-
-            # Rewrite links to be absolute for proper rendering
-            for link in video_page_soup.find_all('a'):
-                if link.get('href') and not link.get('href').startswith('http'):
-                    link['href'] = urljoin(video_url, link['href'])
-
-            # Rewrite image sources to be absolute for proper rendering
-            for img in video_page_soup.find_all('img'):
-                if img.get('src') and not img.get('src').startswith('http'):
-                    img['src'] = urljoin(video_url, img['src'])
-
-            # Return rendered HTML content
-            return render_template_string(str(video_page_soup))
-
-        else:
-            print("No video results found")
+        # Find the first result link
+        first_result = search_soup.find('li', {'class': 'b_algo'})
+        if not first_result:
+            print("No search results found")
             return None
 
-    except requests.exceptions.RequestException as e:
-        print(f"Error searching for videos: {e}")
-        return search_video_ddg(query)
+        link_tag = first_result.find('a')
+        if not link_tag or not link_tag.get('href'):
+            print("No valid link found in the first result")
+            return None
 
+        result_url = link_tag['href']
+        print(f"Result URL: {result_url}")
+
+        # Fetch HTML content of the result page
+        result_page_response = requests.get(result_url)
+        result_page_response.raise_for_status()
+        print("Result page fetched successfully")
+
+        result_page_soup = BeautifulSoup(result_page_response.content, 'html.parser')
+
+        # Rewrite links to be absolute for proper rendering
+        for link in result_page_soup.find_all('a'):
+            if link.get('href') and not link.get('href').startswith('http'):
+                link['href'] = urljoin(result_url, link['href'])
+
+        # Rewrite image sources to be absolute for proper rendering
+        for img in result_page_soup.find_all('img'):
+            if img.get('src') and not img.get('src').startswith('http'):
+                img['src'] = urljoin(result_url, img['src'])
+
+        # Return rendered HTML content
+        return render_template_string(str(result_page_soup))
+
+    except requests.exceptions.RequestException as e:
+        print(f"Error during search or fetching result: {e}")
+        return None
 
 def search_video_ddg(query):
     search_url = f"https://api.duckduckgo.com/?q={query}&format=json"
@@ -329,11 +334,17 @@ def handle_user_response(user_input):
 
         # Emit search results to the client
         for engine, result in search_results.items():
-            if result['abstract']:
-              text_message = f"{result['abstract']}"
-            else:                 
-                text_message = str(result)  # Handle cases where result is not a dictionary
-
+           # Check if result is a dictionary and has the 'abstract' key
+            if isinstance(result, dict) and 'abstract' in result:
+               abstract = result.get('abstract', '')
+               if abstract:
+                  text_message = f"{abstract}"
+               else:
+                  text_message = str(result)  # Handle cases where 'abstract' is empty
+            else:
+             # Handle cases where result is not a dictionary or does not have the 'abstract' key
+             text_message = str(result)  # Convert result to string to avoid errors
+  
             emit('update_message', {'text': user_input, 'sender': 'user'})
             emit('update_message', {'text': text_message, 'sender': 'bot'})
 
