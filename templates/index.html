@@ -31,13 +31,6 @@
             box-sizing: border-box;
         }
 
-        img {
-            max-width: 100%;
-            height: auto;
-            display: block;
-            margin: auto;
-        }
-
         .message-container {
             overflow-y: auto;
             max-height: 400px;
@@ -47,32 +40,40 @@
             background-color: #f0f0f0;
             margin-bottom: 20px;
             position: relative;
+            box-sizing: border-box;
         }
 
         .message-bubble {
             padding: 10px;
             border-radius: 10px;
             margin-bottom: 10px;
-            clear: both;
             max-width: 70%;
             word-wrap: break-word;
             background-color: rgba(255, 255, 255, 0.8);
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            display: inline-block;
+            position: relative;
+            transition: transform 0.3s ease;
         }
 
         .message-bubble-user {
             background-color: #007bff;
             float: right;
             color: #fff;
+            text-align: right;
+            transform: scale(1);
         }
 
         .message-bubble-bot {
             background-color: rgba(255, 255, 255, 0.8);
             float: left;
             color: #333;
-            border-radius: 15px;
-            padding: 15px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1), 0 0 20px rgba(0, 0, 0, 0.1);
+            text-align: left;
+            transform: scale(0.98);
+        }
+
+        .message-bubble.typing {
+            transform: scale(1.02);
         }
 
         #userInput {
@@ -96,40 +97,6 @@
             background-color: #f0f8ff;
         }
 
-        #userInput::placeholder {
-            color: #999;
-            font-style: italic;
-        }
-
-        #userInput::-webkit-input-placeholder {
-            color: #999;
-            font-style: italic;
-        }
-
-        #userInput::-moz-placeholder {
-            color: #999;
-            font-style: italic;
-        }
-
-        #userInput:-ms-input-placeholder {
-            color: #999;
-            font-style: italic;
-        }
-
-        #userInput:-moz-placeholder {
-            color: #999;
-            font-style: italic;
-        }
-
-        #userInput:focus {
-            outline: none;
-            border-color: #007bff;
-        }
-
-        #userInput::placeholder {
-            color: #999;
-        }
-
         #botImage {
             position: absolute;
             bottom: 20px;
@@ -139,158 +106,12 @@
             opacity: 0.7;
         }
 
-        /* Prism.js CSS */
-        code[class*="language-"],
-        pre[class*="language-"] {
-            color: rgb(255, 255, 255);
-            background: none;
-            text-shadow: 0 1px #6b6b6b;
-            font-family: Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;
-            font-size: 1em;
-            text-align: left;
-            white-space: pre;
-            word-spacing: normal;
-            word-break: normal;
-            word-wrap: normal;
-            line-height: 1.5;
-            -moz-tab-size: 4;
-            -o-tab-size: 4;
-            tab-size: 4;
-            -webkit-hyphens: none;
-            -moz-hyphens: none;
-            -ms-hyphens: none;
-            hyphens: none;
-        }
-
-        pre[class*="language-"]::-moz-selection,
-        pre[class*="language-"] ::-moz-selection,
-        code[class*="language-"]::-moz-selection,
-        code[class*="language-"] ::-moz-selection {
-            text-shadow: none;
-        }
-
-        pre[class*="language-"]::selection,
-        pre[class*="language-"] ::selection,
-        code[class*="language-"]::selection,
-        code[class*="language-"] ::selection {
-            text-shadow: none;
-        }
-
-        @media print {
-
-            code[class*="language-"],
-            pre[class*="language-"] {
-                text-shadow: none;
-            }
-        }
-
-        pre[class*="language-"] {
-            padding: 1em;
-            margin: .5em 0;
-            overflow: auto;
-            background: #000000;
-        }
-
-        :not(pre)>code[class*="language-"],
-        pre[class*="language-"] {
-            background: #000000;
-        }
-
-        :not(pre)>code[class*="language-"] {
-            padding: .1em;
-            border-radius: .3em;
-            white-space: normal;
-        }
-
-        .token.comment,
-        .token.prolog,
-        .token.doctype,
-        .token.cdata {
-            color: slategray;
-        }
-
-        .token.punctuation {
-            color: #999;
-        }
-
-        .token.namespace {
-            opacity: .7;
-        }
-
-        .token.property,
-        .token.tag,
-        .token.boolean,
-        .token.number,
-        .token.constant,
-        .token.symbol,
-        .token.deleted {
-            color: #905;
-        }
-
-        .token.selector,
-        .token.attr-name,
-        .token.string,
-        .token.char,
-        .token.builtin,
-        .token.inserted {
-            color: #690;
-        }
-
-        .token.operator,
-        .token.entity,
-        .token.url,
-        .language-css .token.string,
-        .style .token.string {
-            color: #9a6e3a;
-        }
-
-        .token.atrule,
-        .token.attr-value,
-        .token.keyword {
-            color: #07a;
-        }
-
-        .token.function,
-        .token.class-name {
-            color: #DD4A68;
-        }
-
-        .token.regex,
-        .token.important,
-        .token.variable {
-            color: #e90;
-        }
-
-        .token.important,
-        .token.bold {
-            font-weight: bold;
-        }
-
-        .token.italic {
-            font-style: italic;
-        }
-
-        .token.entity {
-            cursor: help;
-        }
-
-        /* Adapt code blocks for dynamic content */
-        .message-container code,
-        .message-container pre {
-            color: #ffffff;
-            background: #282c34;
-            padding: 1em;
-            border-radius: 5px;
-            overflow: auto;
-            display: block;
-        }
-
         /* Make videos responsive */
         .message-container video {
             max-width: 100%;
             height: auto;
             display: block;
-            margin: auto;
+            margin: 10px auto;
             border-radius: 5px;
         }
 
@@ -299,11 +120,20 @@
             max-width: 100%;
             height: auto;
             display: block;
-            margin: auto;
+            margin: 10px auto;
             border-radius: 5px;
         }
 
-        /* Media queries for better responsiveness */
+        .code-block {
+            background-color: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 10px;
+            overflow-x: auto;
+            font-family: 'Courier New', Courier, monospace;
+            white-space: pre-wrap;
+        }
+
         @media (max-width: 600px) {
             .message-bubble {
                 max-width: 90%;
@@ -336,6 +166,7 @@
                 messageDiv.classList.add('message-bubble-user');
             } else {
                 messageDiv.classList.add('message-bubble-bot');
+                messageDiv.classList.add('typing');
             }
 
             // Check if the sender is the bot
@@ -347,10 +178,12 @@
                     messageDiv.innerHTML += chars[index++];
                     if (index === chars.length) {
                         clearInterval(typingInterval);
+                        messageDiv.classList.remove('typing');
+                        messageDiv.innerHTML = formatMessage(messageData.text);
                     }
-                }, 50);
+                }, 1);
             } else {
-                messageDiv.innerHTML = messageData.text;
+                messageDiv.innerHTML = formatMessage(messageData.text);
             }
 
             messageContainer.appendChild(messageDiv);
@@ -381,8 +214,8 @@
 
             // Create a new div element
             var videoDiv = document.createElement('div');
-            videoDiv.innerHTML = videoDivHtml;
             videoDiv.className = 'message-bubble message-bubble-bot';
+            videoDiv.innerHTML = videoDivHtml;
 
             // Append the video div to the message container
             var messageContainer = document.getElementById('messageContainer');
@@ -435,8 +268,22 @@
 
         // Trigger typing animation when page loads
         document.addEventListener('DOMContentLoaded', function () {
-            socket.emit('send_message');
+            socket.emit('user_response', ''); // Trigger typing animation
         });
+
+        // Function to format message text
+        function formatMessage(message) {
+            // Replace newlines with <br> tags
+            message = message.replace(/\n/g, '<br>');
+
+            // Detect code blocks and wrap them in <pre> tags
+            message = message.replace(/```([\s\S]*?)```/g, '<pre class="code-block">$1</pre>');
+
+            // Detect inline code and wrap them in <code> tags
+            message = message.replace(/`([^`]+?)`/g, '<code>$1</code>');
+
+            return message;
+        }
     </script>
 </body>
 

@@ -7,7 +7,12 @@ from flask_socketio import SocketIO, emit
 from urllib.parse import urljoin , urlparse
 
 from markupsafe import Markup, escape
+import asyncio
+from openai import AsyncOpenAI
+import openai
 
+from openai import OpenAI
+from openai import AsyncOpenAI  # Assuming AsyncOpenAI is the correct import from your module
 
 from bs4 import BeautifulSoup
 import requests
@@ -17,6 +22,7 @@ import re
 
 app = Flask(__name__)
 socketio = SocketIO(app, cors_allowed_origins="*")  # All origins are allowed for demonstration purposes
+
 
 # Image URLs
 images = {
@@ -46,7 +52,7 @@ def handle_bot_action(action):
     emit('update_image', image_url)  # Send the talking image URL to the client
 
     # Delay for transition effect
-    time.sleep(0.5)
+    time.sleep(0.1)
 
     # Determine the action and emit corresponding image and message
     if action == 'success':
@@ -162,6 +168,13 @@ def search_image(query):
         print(f"Error searching for images: {e}")
         return None
 
+client = OpenAI(base_url='https://api.naga.ac/v1', api_key='ng-YgkaT8abn2sWaqZRUmVPzs07BdtrE')
+
+
+ 
+def sanitize_html(html_content):
+    return Markup(html_content)  # Flask's Markup class will escape unsafe HTML content
+
 def search_video(query):
     search_url = f"https://www.bing.com/search?q={query}"
     print(f"Search URL: {search_url}")
@@ -172,8 +185,6 @@ def search_video(query):
         print("Search results fetched successfully")
 
         search_soup = BeautifulSoup(response.content, 'html.parser')
-
-        # Find the first result link
         first_result = search_soup.find('li', {'class': 'b_algo'})
         if not first_result:
             print("No search results found")
@@ -187,29 +198,66 @@ def search_video(query):
         result_url = link_tag['href']
         print(f"Result URL: {result_url}")
 
-        # Fetch HTML content of the result page
         result_page_response = requests.get(result_url)
         result_page_response.raise_for_status()
         print("Result page fetched successfully")
 
         result_page_soup = BeautifulSoup(result_page_response.content, 'html.parser')
 
-        # Rewrite links to be absolute for proper rendering
         for link in result_page_soup.find_all('a'):
             if link.get('href') and not link.get('href').startswith('http'):
                 link['href'] = urljoin(result_url, link['href'])
 
-        # Rewrite image sources to be absolute for proper rendering
         for img in result_page_soup.find_all('img'):
             if img.get('src') and not img.get('src').startswith('http'):
                 img['src'] = urljoin(result_url, img['src'])
 
-        # Return rendered HTML content
-        return render_template_string(str(result_page_soup))
+        template_string = str(result_page_soup)
+        sanitized_template = sanitize_html(template_string)  # Sanitize the HTML content
+
+        # Ensure the HTML is valid before rendering
+        try:
+            return render_template_string(sanitized_template)
+        except Exception as e:
+            print(f"Error rendering HTML template: {e}")
+            return None
 
     except requests.exceptions.RequestException as e:
         print(f"Error during search or fetching result: {e}")
         return None
+def search_video_ddg(query):
+    search_url = f"https://api.duckduckgo.com/?q={query}&format=json"
+    
+    try:
+        response = requests.get(search_url)
+        response.raise_for_status()
+        data = response.json()
+        
+        if 'Results' in data and 'Videos' in data['Results']:
+            first_video = data['Results']['Videos'][0]
+            video_url = first_video['Url']
+            print(f"Video URL (DDG): {video_url}")
+
+            video_page_response = requests.get(video_url)
+            video_page_response.raise_for_status()
+            print("Video page fetched successfully")
+
+            video_page_soup = BeautifulSoup(video_page_response.content, 'html.parser')
+            sanitized_video_page = sanitize_html(str(video_page_soup))
+
+            return render_template_string(sanitized_video_page)
+
+        else:
+            print("No video results found (DDG)")
+            return None
+
+    except requests.exceptions.RequestException as e:
+        print(f"Error searching for videos with DuckDuckGo: {e}")
+        return None
+
+
+
+
 
 def search_video_ddg(query):
     search_url = f"https://api.duckduckgo.com/?q={query}&format=json"
@@ -296,6 +344,16 @@ def fetch_content():
 # Socket event for handling user responses
 @socketio.on('user_response')
 def handle_user_response(user_input):
+
+    def say(prompt: str) -> str:
+     response = client.chat.completions.create(
+        model='gpt-3.5-turbo',
+        messages=[{'role': 'user', 'content': prompt + "You are a cheerful and playful assistant. your name is Nella, you are female, you are answering to this prompt: {prompt}"}]
+     )
+     print(response.choices[0].message.content)
+
+     return response.choices[0].message.content
+    
     global bot_speaking
 
     # Check if the bot is currently speaking
@@ -307,6 +365,9 @@ def handle_user_response(user_input):
 
     # Emit the default image at the beginning of the response
     emit('update_image', images['default'])
+
+    say =  say(user_input)
+    emit('update_message', {'text': say, 'sender': 'bot'})
 
     # Check if the user input matches the query pattern
     query_pattern = r'(?:tell me about|explain|what is|who is|where is|when is|why is|how is) (.+)'
@@ -320,6 +381,7 @@ def handle_user_response(user_input):
         search_results = search_web(query)
         image_results = search_image(query)
         video_results = search_video(query)
+        
 
         # Emit search results and images to the client
         if image_results:
