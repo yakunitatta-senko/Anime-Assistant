@@ -1,10 +1,11 @@
 import os
-os.system('pip install flask flask-socketio')
+os.system('pip install flask flask-socketio openai')
 os.system('pip install --upgrade pip')
 
 from flask import Flask, render_template, request ,render_template_string, Response
 from flask_socketio import SocketIO, emit
 from urllib.parse import urljoin , urlparse
+
 
 from markupsafe import Markup, escape
 import asyncio
@@ -347,9 +348,10 @@ def handle_user_response(user_input):
 
     def say(prompt: str) -> str:
      response = client.chat.completions.create(
-        model='gpt-3.5-turbo',
+        model='gpt-4o-mini',
         messages=[{'role': 'user', 'content': prompt + "You are a cheerful and playful assistant. your name is Nella, you are female, you are answering to this prompt: {prompt}"}]
      )
+
      print(response.choices[0].message.content)
 
      return response.choices[0].message.content
@@ -366,9 +368,7 @@ def handle_user_response(user_input):
     # Emit the default image at the beginning of the response
     emit('update_image', images['default'])
 
-    say =  say(user_input)
-    emit('update_message', {'text': say, 'sender': 'bot'})
-
+    
     # Check if the user input matches the query pattern
     query_pattern = r'(?:tell me about|explain|what is|who is|where is|when is|why is|how is) (.+)'
     match = re.search(query_pattern, user_input.lower())
@@ -432,6 +432,9 @@ def handle_user_response(user_input):
         emit('send_image', {'image': server_image_url, 'sender': 'bot'})
 
     else:
+        say =  say(user_input)
+        emit('update_message', {'text': say, 'sender': 'bot'})
+
         # Handle default user input
         emit('update_message', {'text': user_input, 'sender': 'user'})
         handle_bot_action('default')  # Provide default feedback
